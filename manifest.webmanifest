@@ -1,6 +1,6 @@
 {
-  "name": "おにわ筋トレ",
-  "short_name": "おにわ筋トレ",
+  "name": "毎日トレーニング",
+  "short_name": "毎日トレーニング",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -1,5 +1,5 @@
 'use strict';
-/* おにわ筋トレ v1
+/* 毎日トレーニング v1
    ・サーキットタイマー：種目名を登録し、声で「つぎは〇〇」と案内する
    ・お庭：運動を終えるたびにお水をあげて植物が育つ（枯れない）。やった日はカレンダーにお花のスタンプ
    データはこのiPhoneの中（localStorage）だけに保存する。外へは送らない */
@@ -660,7 +660,7 @@ function settingsHTML() {
       <button type="button" class="row" data-act="backup"><span class="r-main"><b>バックアップを書き出す</b><small>機種変更のときなどに。ファイルに保存します</small></span><span class="ic chev">${IC.chev}</span></button>
       <label class="row"><span class="r-main"><b>バックアップから戻す</b><small>書き出したファイルを読み込みます</small></span><input type="file" accept=".json,application/json" id="restore" hidden><span class="ic chev">${IC.chev}</span></label>
     </div>
-    <p class="about">おにわ筋トレ v${VERSION}<br>記録はこのiPhoneの中にだけ保存されます。</p>
+    <p class="about">毎日トレーニング v${VERSION}<br>記録はこのiPhoneの中にだけ保存されます。</p>
   </div>`;
 }
 
@@ -836,7 +836,7 @@ const ACT = {
     const blob = new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `おにわ筋トレ_バックアップ_${dayKey()}.json`;
+    a.download = `毎日トレーニング_バックアップ_${dayKey()}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   },
