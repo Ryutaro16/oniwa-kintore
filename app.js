@@ -4,7 +4,7 @@
    ・お庭：運動を終えるたびにお水をあげて植物が育つ（枯れない）。やった日はカレンダーにお花のスタンプ
    データはこのiPhoneの中（localStorage）だけに保存する。外へは送らない */
 
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 const KEY = 'kintore-garden-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -747,7 +747,8 @@ function ask(html, cls, bind) {
     d.showModal();
     let fin = false;
     const finish = (v) => { if (fin) return; fin = true; d.removeEventListener('close', onClose); if (d.open) d.close(); res(v); };
-    const onClose = () => finish(null);
+    // 前のダイアログを閉じた合図は少し遅れて届くので、開いている間に来た合図は無視する
+    const onClose = () => { if (!d.open) finish(null); };
     d.addEventListener('close', onClose);
     d.onclick = (e) => { if (e.target === d && cls === 'sheet') finish(null); };
     bind(d, finish);
