@@ -1,6 +1,6 @@
 /* オフラインでも開けるようにする（ジムで電波が弱いとき用）。
    まずネットから最新を取りに行き、3秒で取れなければ保存しておいた版を使う */
-const CACHE = 'kintore-20261025215410';
+const CACHE = 'kintore-20261026060745';
 const FILES = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

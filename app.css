@@ -18,7 +18,8 @@
   --font: ui-rounded, "Hiragino Maru Gothic ProN", "SF Pro Rounded", "Hiragino Sans", system-ui, sans-serif;
   color-scheme: light;
 }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* ダブルタップで拡大しない */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 html, body { margin: 0; height: 100%; }
 body {
   background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 17px;
