@@ -4,7 +4,7 @@
    ・お庭：運動を終えるたびにお水をあげて植物が育つ（枯れない）。やった日はカレンダーにお花のスタンプ
    データはこのiPhoneの中（localStorage）だけに保存する。外へは送らない */
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const KEY = 'kintore-garden-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -22,26 +22,31 @@ const PRESETS = [
     exercises: ['スクワット', '壁腕立て', 'もも上げ', 'かかと上げ', 'ひざ上げ腹筋', 'その場足踏み'] },
   { name: 'やさしい5分', prep: 10, work: 30, rest: 30, sets: 1, setRest: 0, cool: 60,
     exercises: ['いすスクワット', '肩まわし', 'かかと上げ', 'その場足踏み'] },
-  { name: 'タバタ', prep: 10, work: 20, rest: 10, sets: 8, setRest: 10, cool: 0,
-    exercises: ['ワークアウト'] },
+  // 種目なし（時間だけ）。exercises が空のメニューは「回数」でくり返す
+  { name: 'かんたんタイマー', prep: 10, work: 30, rest: 15, sets: 8, setRest: 0, cool: 0,
+    exercises: [] },
 ];
+const noEx = (m) => !m.exercises.length;
 const QUICK_EX = ['スクワット', '腕立て', '壁腕立て', 'もも上げ', 'かかと上げ', '腹筋', 'プランク', 'ランジ', 'その場足踏み', '肩まわし', 'ジャンプ', 'バーピー'];
 
 /* ---------- 植物 ---------- */
+// need＝咲くまでのお水の回数。最初のチューリップは週3〜4回の運動で約1週間、先の植物ほどむずかしい
 const PLANTS = [
-  { id: 'tulip', name: 'チューリップ', type: 'tulip', color: '#E8879B' },
-  { id: 'gerbera', name: 'ガーベラ', type: 'daisy', color: '#F2A07B', center: '#8A5A3B', n: 16, r: 28 },
-  { id: 'sunflower', name: 'ひまわり', type: 'daisy', color: '#F3C64F', center: '#7A5230', n: 14, r: 34 },
-  { id: 'hydrangea', name: 'あじさい', type: 'cluster', color: '#9FB3E3', color2: '#B9A3DA' },
-  { id: 'rose', name: 'バラ', type: 'rose', color: '#D45D74' },
-  { id: 'lavender', name: 'ラベンダー', type: 'spike', color: '#A88BCF' },
-  { id: 'sakura', name: '桜', type: 'tree', color: '#F5B8C6' },
-  { id: 'orchid', name: 'こちょうらん', type: 'orchid', color: '#FBF1F5', center: '#D9779A' },
-  { id: 'pineapple', name: 'パイナップル', type: 'pine', color: '#E9B949' },
+  { id: 'tulip', name: 'チューリップ', type: 'tulip', color: '#E8879B', need: 4, word: '思いやり' },
+  { id: 'gerbera', name: 'ガーベラ', type: 'daisy', color: '#F2A07B', center: '#8A5A3B', n: 16, r: 28, need: 5, word: '希望・前進' },
+  { id: 'sunflower', name: 'ひまわり', type: 'daisy', color: '#F3C64F', center: '#7A5230', n: 14, r: 34, need: 6, word: 'あこがれ' },
+  { id: 'hydrangea', name: 'あじさい', type: 'cluster', color: '#9FB3E3', color2: '#B9A3DA', need: 7, word: '辛抱強い愛情' },
+  { id: 'rose', name: 'バラ', type: 'rose', color: '#D45D74', need: 8, word: '愛・美' },
+  { id: 'lavender', name: 'ラベンダー', type: 'spike', color: '#A88BCF', need: 9, word: '期待' },
+  { id: 'sakura', name: '桜', type: 'tree', color: '#F5B8C6', need: 10, word: '精神の美' },
+  { id: 'orchid', name: 'こちょうらん', type: 'orchid', color: '#FBF1F5', center: '#D9779A', need: 12, word: '幸福が飛んでくる' },
+  { id: 'pineapple', name: 'パイナップル', type: 'pine', color: '#E9B949', need: 14, word: '完全無欠' },
 ];
-const STAGES = [{ at: 0, name: 'たね' }, { at: 1, name: '芽' }, { at: 3, name: 'ふたば' }, { at: 5, name: 'つぼみ' }, { at: 7, name: '花' }];
-const BLOOM = 7; // 7回お水をあげると咲く
-const stageOf = (w) => STAGES.reduce((st, s, i) => (w >= s.at ? i : st), 0);
+const STAGES = ['たね', '芽', 'ふたば', 'つぼみ', '花'];
+// お水 w 回のときの育ち具合（0〜4）。1回で芽、need回で花、そのあいだを3等分
+const stageOf = (w, need) => (w <= 0 ? 0 : w >= need ? 4 : 1 + Math.floor(((w - 1) * 3) / (need - 1)));
+const needOf = (i) => PLANTS[i].need;
+const stars = (need) => '★'.repeat(Math.min(5, Math.ceil((need - 3) / 2))) || '★';
 const STAGE_MSG = ['', '芽が出ました', 'ふたばになりました', 'つぼみができました', '咲きました'];
 
 /* ---------- 保存 ---------- */
@@ -51,7 +56,7 @@ function defaults() {
     v: 1, menus, cur: menus[0].id,
     settings: { voice: true, tenSec: true, beep: true, rate: 'normal', silentOk: true },
     log: [], // { d:'2026-10-25', t: 時刻, kind:'timer'|'manual', menu, sec }
-    garden: { plant: 0, water: 0, coll: {}, blooms: 0 },
+    garden: { plant: 0, water: 0, coll: {}, blooms: 0, hist: [] }, // hist: 咲いた記録 { id, d }
   };
 }
 let S;
@@ -63,10 +68,24 @@ function load() {
       const d = JSON.parse(raw);
       S = { ...base, ...d, settings: { ...base.settings, ...d.settings }, garden: { ...base.garden, ...d.garden } };
       if (!Array.isArray(S.menus) || !S.menus.length) S.menus = base.menus;
+      migrate();
       return;
     }
   } catch { /* 読めないときは初期状態で始める */ }
   S = base;
+}
+// 前の版のデータを今の形に合わせる
+function migrate() {
+  // タバタ（はじめから入っていたもの）は「かんたんタイマー」に置き換える（2026-10-25 龍太郎の選択）
+  S.menus = S.menus.map((m) => (m.name === 'タバタ' && m.work === 20 && m.rest === 10 && m.sets === 8
+    && m.exercises.length === 1 && m.exercises[0] === 'ワークアウト' ? { id: m.id, ...PRESETS[2], exercises: [] } : m));
+  const g = S.garden;
+  if (!Array.isArray(g.hist)) {
+    g.hist = [];
+    PLANTS.forEach((p) => { for (let i = 0; i < (g.coll[p.id] || 0); i++) g.hist.push({ id: p.id, d: '' }); });
+  }
+  // 咲くまでの回数が変わったので、咲く前の植物は「あと1回で咲く」より先へ進めない
+  if (g.water > needOf(g.plant)) g.water = needOf(g.plant) - 1;
 }
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { toast('保存できませんでした'); }
@@ -107,6 +126,9 @@ const TONES = {
   pop: [[880, 0, 0.09]],
   chime: [[988, 0, 0.14], [1319, 0.15, 0.26]],
   fanfare: [[784, 0, 0.12], [988, 0.13, 0.12], [1175, 0.26, 0.12], [1568, 0.4, 0.45]],
+  sparkle: [[1568, 0, 0.08], [2093, 0.07, 0.08], [2637, 0.14, 0.1], [3136, 0.22, 0.3]],
+  bloom: [[523, 0, 0.16], [659, 0.16, 0.16], [784, 0.32, 0.16], [1047, 0.48, 0.32], [988, 0.82, 0.12], [1047, 0.95, 0.12],
+    [1319, 1.08, 0.5], [2093, 1.15, 0.08], [2637, 1.22, 0.08], [3136, 1.29, 0.35]],
 };
 function playTone(kind) {
   return new Promise((res) => {
@@ -172,8 +194,9 @@ function announce(seg) {
   const m = timerMenu();
   let text = '';
   const exName = (n) => (n === 'ワークアウト' ? '' : n);
+  const last = seg.k === 'work' && !T.segs.slice(T.segs.indexOf(seg) + 1).some((s) => s.k === 'work');
   if (seg.k === 'prep') text = exName(seg.ex) ? `準備してください。さいしょは、${seg.ex}` : '準備してください';
-  else if (seg.k === 'work') text = exName(seg.ex) ? `${seg.ex}、スタート` : 'スタート';
+  else if (seg.k === 'work') text = `${last ? 'ラスト、' : ''}${exName(seg.ex) ? `${seg.ex}、` : ''}スタート`;
   else if (seg.k === 'rest') text = exName(seg.ex) ? `休憩。つぎは、${seg.ex}` : '休憩';
   else if (seg.k === 'setrest') text = `セットの間の休憩です。のこり${m.sets - seg.set}セット`;
   else if (seg.k === 'cool') text = 'クールダウン。ゆっくり呼吸しましょう';
@@ -239,7 +262,7 @@ function finishTimer() {
   const m = timerMenu();
   const sec = T.segs.reduce((a, s) => a + s.dur, 0);
   const res = addRecord({ kind: 'timer', menu: m.name, sec });
-  playTone('fanfare').then(() => say('おつかれさまでした。お花にお水をあげました', true));
+  playTone('fanfare').then(() => say('おつかれさまでした', true));
   if (view === 'garden') keepScroll(render); else updateTimer();
   celebrate(res, `${m.name}・${jpMin(sec)}`);
 }
@@ -248,18 +271,20 @@ function finishTimer() {
 function water() {
   const g = S.garden;
   const r = { newSeed: false, bloomed: false };
-  if (g.water >= BLOOM) { // 前の花が咲いていたら、つぎのたねをまく
+  if (g.water >= needOf(g.plant)) { // 前の花が咲いていたら、つぎのたねをまく
     g.plant = g.blooms < PLANTS.length ? g.blooms : Math.floor(Math.random() * PLANTS.length);
     g.water = 0; r.newSeed = true;
   }
-  const before = stageOf(g.water);
+  const need = needOf(g.plant);
+  r.prevStage = stageOf(g.water, need);
   g.water++;
-  r.stage = stageOf(g.water);
-  r.stageUp = r.stage > before;
-  if (g.water === BLOOM) {
+  r.stage = stageOf(g.water, need);
+  r.stageUp = r.stage > r.prevStage;
+  if (g.water === need) {
     const id = PLANTS[g.plant].id;
     g.coll[id] = (g.coll[id] || 0) + 1;
     g.blooms++;
+    g.hist.push({ id, d: dayKey() });
     r.bloomed = true;
   }
   return r;
@@ -396,9 +421,15 @@ function plantBody(p, stage) {
     }
     return s;
   }
-  return stemPath(100, 172, 100, 84) + leaf(101, 142, -18, 1.2) + leaf(101, 120, -18, 1.15, true, '#87A68B') + bloomHead(p, 100, 66);
+  return stemPath(100, 172, 100, 84) + leaf(101, 142, -18, 1.2) + leaf(101, 120, -18, 1.15, true, '#87A68B') + `<g class="head">${bloomHead(p, 100, 66)}</g>`;
 }
-const plantSVG = (p, stage, cls = '') => `<svg viewBox="0 0 200 240" class="${cls}" aria-hidden="true">${POT}${plantBody(p, stage)}</svg>`;
+// 植物は土のところを支点に風でゆれる（ゆれ方は1つずつずらす）。pot:false はお庭の地面に植えた姿
+const GROUND = '<ellipse cx="100" cy="176" rx="40" ry="8" fill="#A88570"/><ellipse cx="100" cy="173" rx="30" ry="5" fill="#8B6B5C"/>';
+function plantSVG(p, stage, cls = '', pot = true) {
+  const delay = -(Math.random() * 6).toFixed(2);
+  return `<svg viewBox="0 0 200 ${pot ? 240 : 186}" class="${cls}" aria-hidden="true">${pot ? POT : GROUND}`
+    + `<g class="sway" style="animation-delay:${delay}s">${plantBody(p, stage)}</g></svg>`;
+}
 const DROP = '<svg viewBox="0 0 20 24" aria-hidden="true"><path d="M10 2C10 2 3 11 3 15.5a7 7 0 0 0 14 0C17 11 10 2 10 2Z"/></svg>';
 const STAMP = `<svg viewBox="0 0 20 20" class="stamp" aria-hidden="true">${miniFlower(10, 10, 5.2, '#D98C9A', '#F6D8A8')}</svg>`;
 
@@ -480,8 +511,10 @@ function updateTimer() {
   ph.dataset.k = k;
   $('.ph-label', root).textContent = PH[k];
   const isName = (n) => n && n !== 'ワークアウト';
+  const works = T.segs.filter((s) => s.k === 'work').length;
+  const worksDone = T.segs.slice(0, Math.min(T.idx, T.segs.length)).filter((s) => s.k === 'work').length;
   $('.ph-ex', root).textContent = !seg ? 'おつかれさまでした'
-    : seg.k === 'work' ? (isName(seg.ex) ? seg.ex : '')
+    : seg.k === 'work' ? (isName(seg.ex) ? seg.ex : `${worksDone + 1}回目 / ${works}回`)
     : seg.k === 'cool' ? 'ゆっくり呼吸'
     : isName(seg.ex) ? `つぎは ${seg.ex}` : '';
   $('.ph-time', root).textContent = mmss(seg ? left : 0);
@@ -497,8 +530,17 @@ function updateTimer() {
   $('.mname', root).textContent = m.name;
   $('.total', root).textContent = mmss(total);
   const curSet = seg ? seg.set : m.sets;
-  $('.c-ex b', root).textContent = seg ? T.segs.slice(T.idx).filter((s) => s.k === 'work' && s.set === curSet).length : 0;
-  $('.c-set b', root).textContent = Math.max(0, m.sets - curSet);
+  if (noEx(m)) { // 種目なし：のこり回数／おわった回数
+    $('.c-ex span', root).textContent = 'のこり回数';
+    $('.c-set span', root).textContent = 'おわった回数';
+    $('.c-ex b', root).textContent = works - worksDone;
+    $('.c-set b', root).textContent = worksDone;
+  } else {
+    $('.c-ex span', root).textContent = 'のこり種目';
+    $('.c-set span', root).textContent = 'のこりセット';
+    $('.c-ex b', root).textContent = seg ? T.segs.slice(T.idx).filter((s) => s.k === 'work' && s.set === curSet).length : 0;
+    $('.c-set b', root).textContent = Math.max(0, m.sets - curSet);
+  }
   const run = T.state === 'run';
   const btn = $('.play', root);
   btn.innerHTML = run ? IC.pause : IC.play;
@@ -509,7 +551,7 @@ function updateTimer() {
 
 /* メニュー一覧 */
 function menuSummary(m) {
-  return `${m.exercises.length}種目 × ${m.sets}セット・${jpMin(totalSec(m))}`;
+  return noEx(m) ? `種目なし・${m.sets}回・${jpMin(totalSec(m))}` : `${m.exercises.length}種目 × ${m.sets}セット・${jpMin(totalSec(m))}`;
 }
 function menusHTML() {
   return `<div class="page">
@@ -519,7 +561,7 @@ function menusHTML() {
       <button type="button" class="m-main" data-act="useMenu" data-id="${m.id}">
         <span class="m-name">${m.id === S.cur ? '<span class="badge">使用中</span>' : ''}${esc(m.name)}</span>
         <span class="m-sum">${menuSummary(m)}</span>
-        <span class="m-ex">${m.exercises.map(esc).join('・')}</span>
+        <span class="m-ex">${noEx(m) ? `${jpSec(m.work)}運動・${m.rest ? `${jpSec(m.rest)}休憩` : '休憩なし'}をくり返します` : m.exercises.map(esc).join('・')}</span>
       </button>
       <button type="button" class="m-edit" data-act="editMenu" data-id="${m.id}"><span class="ic">${IC.pencil}</span>編集</button>
     </div>`).join('')}
@@ -536,7 +578,11 @@ const FIELDS = [
   { f: 'setRest', label: 'セット間の休憩', sub: '0にすると、ふつうの休憩と同じ', dot: 'var(--sage-l)', kind: 'sec', min: 0, max: 600, step: 15, chips: [0, 30, 60, 90, 120, 180] },
   { f: 'cool', label: 'クールダウン', sub: 'さいごのストレッチ', dot: 'var(--mist)', kind: 'sec', min: 0, max: 600, step: 15, chips: [0, 30, 60, 120, 180, 300] },
 ];
-const fmtVal = (fd, v) => (fd.kind === 'sec' ? (v === 0 ? 'なし' : jpSec(v)) : `${v}`);
+// 種目なしのメニューでは「セット数」を「回数」と呼び、セット間の休憩は使わない
+const fieldsFor = (d) => (d.useEx ? FIELDS : FIELDS.filter((fd) => fd.f !== 'setRest').map((fd) => (fd.f === 'sets'
+  ? { ...fd, label: '回数', sub: 'ワークアウト＋休憩を1回として', kind: 'count', max: 50, chips: [4, 6, 8, 10, 12, 20] }
+  : fd.f === 'work' ? { ...fd, sub: '1回の運動の時間' } : fd.f === 'rest' ? { ...fd, sub: '運動と運動のあいだ' } : fd)));
+const fmtVal = (fd, v) => (fd.kind === 'sec' ? (v === 0 ? 'なし' : jpSec(v)) : fd.kind === 'count' ? `${v}回` : `${v}`);
 function editHTML() {
   const d = draft;
   return `<div class="page edit">
@@ -548,13 +594,17 @@ function editHTML() {
     <label class="name-row"><span>名前</span><input type="text" id="e-name" value="${esc(d.name)}" maxlength="20" placeholder="マイメニュー"></label>
     <h2 class="sec-title">時間とくり返し</h2>
     <div class="rows card">
-      ${FIELDS.map((fd) => `<button type="button" class="row" data-act="editField" data-f="${fd.f}">
+      ${fieldsFor(d).map((fd) => `<button type="button" class="row" data-act="editField" data-f="${fd.f}">
         <i class="dot" style="background:${fd.dot}"></i>
         <span class="r-main"><b>${fd.label}</b><small>${fd.sub}</small></span>
         <span class="r-val">${fmtVal(fd, d[fd.f])}</span><span class="ic chev">${IC.chev}</span>
       </button>`).join('')}
     </div>
-    <h2 class="sec-title">種目 <small>（この順番で行います）</small></h2>
+    <h2 class="sec-title">種目</h2>
+    <div class="rows card"><button type="button" class="row" data-act="exToggle">
+      <span class="r-main"><b>種目の名前を使う</b><small>${d.useEx ? '声で「スクワット、スタート」と案内します' : 'オフ：時間だけでくり返します（「スタート」「休憩」）'}</small></span>
+      <i class="sw ${d.useEx ? 'on' : ''}"></i></button></div>
+    ${d.useEx ? `<h2 class="sec-title">種目の並び <small>（この順番で行います）</small></h2>
     <div class="rows card">
       ${d.exercises.map((name, i) => `<div class="ex-row">
         <span class="ex-no">${i + 1}</span>
@@ -566,7 +616,7 @@ function editHTML() {
     </div>
     <p class="hint-s">タップで追加</p>
     <div class="chips">${QUICK_EX.map((n) => `<button type="button" class="chip" data-act="exAdd" data-n="${esc(n)}">${esc(n)}</button>`).join('')}
-      <button type="button" class="chip other" data-act="exAdd" data-n="">＋ その他</button></div>
+      <button type="button" class="chip other" data-act="exAdd" data-n="">＋ その他</button></div>` : ''}
     <p class="e-total">合計 <b>${mmss(totalSec(d))}</b>（${menuSummary(d)}）</p>
     ${!d.isNew && S.menus.length > 1 ? '<button type="button" class="btn-del" data-act="editDelete">このメニューを削除</button>' : ''}
   </div>`;
@@ -576,20 +626,20 @@ function editHTML() {
 function gardenHTML() {
   const g = S.garden;
   const p = PLANTS[g.plant];
-  const stage = stageOf(g.water);
+  const need = needOf(g.plant);
+  const stage = stageOf(g.water, need);
   const se = season(new Date().getMonth() + 1);
-  const bloomed = g.water >= BLOOM;
+  const bloomed = g.water >= need;
   const today = dayKey();
   const manualDone = S.log.some((l) => l.d === today && l.kind === 'manual');
-  const level = g.blooms + 1;
   return `<div class="page garden">
     <header class="p-head"><h1>お庭</h1><span class="season">${se.deco} ${se.name}</span></header>
     <section class="plant-card s-${se.id}">
       <div class="falling">${Array.from({ length: 6 }, (_, i) => `<span style="--i:${i}">${se.deco}</span>`).join('')}</div>
       <div class="plant">${plantSVG(p, stage)}</div>
-      <div class="pname">${esc(p.name)}<small>${STAGES[stage].name}</small></div>
-      <div class="drops">${Array.from({ length: BLOOM }, (_, i) => `<span class="${i < g.water ? 'on' : ''}">${DROP}</span>`).join('')}</div>
-      <p class="p-hint">${bloomed ? 'きれいに咲きました！ つぎの運動で、新しいたねをまきます' : `運動するとお水をあげられます。あと<b>${BLOOM - g.water}回</b>で咲きます`}</p>
+      <div class="pname">${esc(p.name)}<small>${STAGES[stage]}</small></div>
+      <div class="drops ${need > 9 ? 'many' : ''}">${Array.from({ length: need }, (_, i) => `<span class="${i < g.water ? 'on' : ''}">${DROP}</span>`).join('')}</div>
+      <p class="p-hint">${bloomed ? 'きれいに咲きました！ つぎの運動で、新しいたねをまきます' : `運動するとお水をあげられます。あと<b>${need - g.water}回</b>で咲きます`}</p>
     </section>
     <section class="stats">
       <div><b>${streak()}</b><span>日連続</span></div>
@@ -597,18 +647,41 @@ function gardenHTML() {
       <div><b>${doneDays().size}</b><span>合計の日数</span></div>
     </section>
     <button type="button" class="btn-soft" data-act="manual" ${manualDone ? 'disabled' : ''}>${manualDone ? '✓ きょうの運動は記録ずみ' : '💧 タイマーなしで運動した日を記録'}</button>
+    ${yardHTML()}
+    ${zukanHTML(stage)}
     ${calendarHTML()}
-    <section class="card coll">
-      <h2>咲いたお花 <small>レベル ${level}</small></h2>
-      <div class="coll-grid">${PLANTS.map((pl, i) => {
-        const n = g.coll[pl.id] || 0;
-        if (n) return `<div class="ci"><div class="ci-img">${plantSVG(pl, 4)}</div><span>${esc(pl.name)}</span><em>×${n}</em></div>`;
-        if (i === g.plant) return `<div class="ci grow"><div class="ci-img">${plantSVG(pl, stage)}</div><span>${esc(pl.name)}</span><em>育て中</em></div>`;
-        if (i <= g.blooms) return `<div class="ci grow"><div class="ci-img">${plantSVG(pl, 0)}</div><span>${esc(pl.name)}</span><em>つぎのたね</em></div>`;
-        return `<div class="ci lock"><div class="ci-img">${plantSVG(pl, 4)}</div><span>？？？</span><em>レベル${i + 1}</em></div>`;
-      }).join('')}</div>
-    </section>
   </div>`;
+}
+// わたしのお庭：咲かせた花が、咲いた順に地面に植わっていく（新しいもの24本まで）
+function yardHTML() {
+  const hist = S.garden.hist;
+  const shown = hist.slice(-24);
+  const slots = Math.max(8, Math.ceil((shown.length + 1) / 4) * 4);
+  let cells = shown.map((h) => {
+    const pl = PLANTS.find((x) => x.id === h.id) || PLANTS[0];
+    return `<div class="yd">${plantSVG(pl, 4, '', false)}</div>`;
+  }).join('');
+  for (let i = shown.length; i < slots; i++) cells += `<div class="yd empty">${i === shown.length ? '<span>つぎは<br>ここに</span>' : ''}</div>`;
+  return `<section class="card yard-card">
+    <h2>わたしのお庭 <small>${hist.length}本</small></h2>
+    <div class="yard">${cells}</div>
+    ${hist.length ? '' : '<p class="yard-empty">咲かせたお花が、ここに植わっていきます</p>'}
+  </section>`;
+}
+// お花図鑑：出会った花をタップすると、花言葉や咲かせた日が見られる
+function zukanHTML(stage) {
+  const g = S.garden;
+  return `<section class="card coll">
+    <h2>お花図鑑 <small>${Object.keys(g.coll).length} / ${PLANTS.length}種類・レベル ${g.blooms + 1}</small></h2>
+    <div class="coll-grid">${PLANTS.map((pl, i) => {
+      const n = g.coll[pl.id] || 0;
+      const st = `<i class="star">${stars(pl.need)}</i>`;
+      if (i === g.plant && g.water < pl.need) return `<button type="button" class="ci grow" data-act="zukan" data-i="${i}"><div class="ci-img">${plantSVG(pl, stage)}</div><span>${esc(pl.name)}</span>${st}<em>育て中</em></button>`;
+      if (n) return `<button type="button" class="ci" data-act="zukan" data-i="${i}"><div class="ci-img">${plantSVG(pl, 4)}</div><span>${esc(pl.name)}</span>${st}<em>×${n}</em></button>`;
+      if (i <= g.blooms) return `<div class="ci grow"><div class="ci-img">${plantSVG(pl, 0)}</div><span>${esc(pl.name)}</span>${st}<em>つぎのたね</em></div>`;
+      return `<div class="ci lock"><div class="ci-img">${plantSVG(pl, 4)}</div><span>？？？</span>${st}<em>レベル${i + 1}</em></div>`;
+    }).join('')}</div>
+  </section>`;
 }
 function calendarHTML() {
   const y = calMonth.getFullYear(), mo = calMonth.getMonth();
@@ -687,7 +760,7 @@ const confirmBox = (msg, ok = 'はい', danger = false) => ask(
 function pickValue(fd, value) {
   let v = value;
   const show = (d) => {
-    $('.st-val', d).textContent = fd.kind === 'sec' ? (v === 0 ? 'なし' : jpSec(v)) : `${v}セット`;
+    $('.st-val', d).textContent = fd.kind === 'set' ? `${v}セット` : fmtVal(fd, v);
     $$('.chip', d).forEach((c) => c.classList.toggle('on', +c.dataset.c === v));
   };
   return ask(`<h3 class="dlg-title">${fd.label}</h3><p class="dlg-sub">${fd.sub}</p>
@@ -713,27 +786,70 @@ function textBox(title, value = '') {
     inp.onkeydown = (e) => { if (e.key === 'Enter') fin(inp.value.trim() || null); };
   });
 }
+// おつかれさま：お水が降ってきて、植物が育つ。咲いたときは光とキラキラと花びらで大きくお祝いする
 function celebrate(r, sub) {
   const g = S.garden;
   const p = PLANTS[g.plant];
+  const remain = needOf(g.plant) - g.water;
+  const bloom = r.bloomed;
   let msg = '';
-  if (r.bloomed) msg = `🎉 ${p.name}が咲きました！`;
-  else if (r.newSeed) msg = `新しいたね「${p.name}」をまいて、${STAGE_MSG[r.stage] || 'お水をあげました'}`;
-  else if (r.stageUp) msg = `${p.name}の${STAGE_MSG[r.stage]}`;
-  const remain = BLOOM - g.water;
-  const petals = Array.from({ length: 14 }, (_, i) => `<i style="--i:${i}"></i>`).join('');
-  ask(`<div class="petals">${petals}</div>
+  if (r.newSeed) msg = `新しいたね「${p.name}」をまいて、${STAGE_MSG[r.stage]}`;
+  else if (r.stageUp && !bloom) msg = `${p.name}の${STAGE_MSG[r.stage]}`;
+  const after = bloom
+    ? `<p class="cel-big">${esc(p.name)}が<br>咲きました！</p><p class="cel-word">花言葉「${esc(p.word)}」</p><p class="cel-remain">🌼 お花図鑑とお庭に入りました</p>`
+    : `${msg ? `<p class="cel-msg">${esc(msg)}</p>` : ''}<p class="cel-remain">あと${remain}回で咲きます</p>`;
+  const token = {};
+  celebrate.token = token;
+  ask(`<div class="rays"></div><div class="petals"></div>
     <h3 class="cel-title">おつかれさまでした！</h3>
     <p class="cel-sub">${esc(sub)}</p>
-    <div class="cel-plant ${r.stageUp || r.bloomed ? 'grow' : ''}">${plantSVG(p, r.stage)}</div>
+    <div class="cel-stage">
+      <div class="cel-plant">${plantSVG(p, r.prevStage)}</div>
+      <div class="rain">${Array.from({ length: 6 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
+      <div class="sparkles"></div>
+    </div>
     <p class="cel-water">💧 お水をあげました</p>
-    ${msg ? `<p class="cel-msg">${esc(msg)}</p>` : ''}
-    <p class="cel-remain">${r.bloomed ? 'お庭のコレクションに入りました' : `あと${remain}回で咲きます`}</p>
+    <div class="cel-after">${after}</div>
     <div class="dlg-btns"><button type="button" class="btn ghost" data-x>とじる</button><button type="button" class="btn" data-g>お庭を見る</button></div>`,
-  'center cel', (d, fin) => {
+  `center cel${bloom ? ' is-bloom' : ''}`, (d, fin) => {
     $('[data-x]', d).onclick = () => fin(null);
     $('[data-g]', d).onclick = () => { fin(null); go('garden'); };
+    // お水が届いたら育つ
+    setTimeout(() => {
+      if (celebrate.token !== token || !d.open) return;
+      $('.cel-plant', d).innerHTML = plantSVG(p, r.stage);
+      if (r.stageUp || bloom) $('.cel-plant', d).classList.add('grown');
+      d.classList.add('revealed');
+      const n = bloom ? 16 : r.stageUp ? 7 : 0;
+      $('.sparkles', d).innerHTML = Array.from({ length: n }, (_, i) => {
+        const a = (i / n) * Math.PI * 2, rr = 38 + (i % 3) * 14;
+        return `<i style="left:${(50 + Math.cos(a) * rr).toFixed(1)}%;top:${(48 + Math.sin(a) * rr * 0.8).toFixed(1)}%;--d:${(i % 5) * 0.15}s;--s:${0.7 + (i % 4) * 0.25}">✦</i>`;
+      }).join('');
+      if (bloom) {
+        const cols = ['var(--rose)', 'var(--honey)', 'var(--sage)', '#F3C64F', '#fff', p.color];
+        $('.petals', d).innerHTML = Array.from({ length: 36 }, (_, i) => `<i style="--x:${(i * 2.83) % 100}%;--c:${cols[i % cols.length]};--d:${(i % 12) * 0.1}s;--r:${(i % 7) * 60}deg"></i>`).join('');
+        playTone('bloom').then(() => say(`おめでとうございます。${p.name}が咲きました`));
+      } else if (r.stageUp) playTone('sparkle');
+    }, 1150);
   });
+}
+function zukanDetail(i) {
+  const g = S.garden;
+  const pl = PLANTS[i];
+  const n = g.coll[pl.id] || 0;
+  const growing = i === g.plant && g.water < pl.need;
+  const first = g.hist.find((h) => h.id === pl.id && h.d);
+  const fmtD = (d) => `${+d.slice(0, 4)}年${+d.slice(5, 7)}月${+d.slice(8)}日`;
+  ask(`<div class="zk-img">${plantSVG(pl, growing && !n ? stageOf(g.water, pl.need) : 4)}</div>
+    <h3 class="dlg-title">${esc(pl.name)}</h3>
+    <p class="zk-word">花言葉「${esc(pl.word)}」</p>
+    <table class="zk-tbl">
+      <tr><th>むずかしさ</th><td><span class="star">${stars(pl.need)}</span>（${pl.need}回で咲く）</td></tr>
+      <tr><th>咲かせた回数</th><td>${n}回</td></tr>
+      ${first ? `<tr><th>はじめて咲いた日</th><td>${fmtD(first.d)}</td></tr>` : ''}
+      ${growing ? `<tr><th>いま</th><td>${STAGES[stageOf(g.water, pl.need)]}・あと${pl.need - g.water}回</td></tr>` : ''}
+    </table>
+    <div class="dlg-btns"><button type="button" class="btn" data-x>とじる</button></div>`, 'sheet', (d, fin) => { $('[data-x]', d).onclick = () => fin(null); });
 }
 function toast(msg) {
   const t = $('#toast');
@@ -773,21 +889,29 @@ const ACT = {
   },
   editMenu(b) {
     const m = S.menus.find((x) => x.id === b.dataset.id);
-    draft = JSON.parse(JSON.stringify(m));
+    draft = { ...JSON.parse(JSON.stringify(m)), useEx: !noEx(m) };
     go('edit');
   },
   newMenu() {
-    draft = { id: uid(), isNew: true, name: '', prep: 10, work: 30, rest: 15, sets: 2, setRest: 60, cool: 30, exercises: ['スクワット'] };
+    draft = { id: uid(), isNew: true, useEx: true, name: '', prep: 10, work: 30, rest: 15, sets: 2, setRest: 60, cool: 30, exercises: ['スクワット'] };
     go('edit');
   },
+  exToggle() {
+    const d = draft;
+    if (d.useEx) { d.keepEx = d.exercises; d.exercises = []; d.useEx = false; if (d.sets < 4) d.sets = 8; }
+    else { d.exercises = d.keepEx?.length ? d.keepEx : ['スクワット']; d.useEx = true; }
+    keepScroll(render);
+  },
+  zukan: (b) => zukanDetail(+b.dataset.i),
   editCancel: () => go('menus'),
   editSave() {
     const d = draft;
     d.name = d.name.trim() || 'マイメニュー';
-    d.exercises = d.exercises.map((x) => x.trim()).filter(Boolean);
-    if (!d.exercises.length) { toast('種目を1つ以上入れてください'); return; }
+    d.exercises = d.useEx ? d.exercises.map((x) => x.trim()).filter(Boolean) : [];
+    if (d.useEx && !d.exercises.length) { toast('種目を1つ以上入れてください（または「種目の名前を使う」をオフに）'); return; }
+    if (!d.useEx) d.setRest = 0;
     const isNew = d.isNew;
-    delete d.isNew;
+    delete d.isNew; delete d.useEx; delete d.keepEx;
     if (isNew) { S.menus.push(d); S.cur = d.id; } else S.menus = S.menus.map((m) => (m.id === d.id ? d : m));
     save();
     if (!timerBusy() && (isNew || d.id === T.menuId)) resetTimer();
@@ -803,7 +927,7 @@ const ACT = {
     go('menus');
   },
   async editField(b) {
-    const fd = FIELDS.find((x) => x.f === b.dataset.f);
+    const fd = fieldsFor(draft).find((x) => x.f === b.dataset.f);
     const v = await pickValue(fd, draft[fd.f]);
     if (v == null) return;
     draft[fd.f] = v;
