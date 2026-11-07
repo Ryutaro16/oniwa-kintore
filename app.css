@@ -295,6 +295,8 @@ dialog.center { width: min(90vw, 380px); border-radius: 28px; padding: 22px 20px
 .btn.wide { display: block; width: 100%; margin-top: 4px; }
 .btn.done { background: var(--sage); }
 .btn.sm { flex: 0 0 30%; }
+.guide-note { font-size: 13px; color: var(--ink2); line-height: 1.6; margin: -6px 2px 0; }
+.txtlink { display: block; margin: 14px auto 0; border: 0; background: none; color: var(--ink2); font-size: 13px; text-decoration: underline; padding: 6px; }
 .dlg-msg small { font-size: 13px; color: var(--ink2); }
 .pick-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .pick-item { text-align: left; border: 2px solid var(--line); background: var(--card); border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; }

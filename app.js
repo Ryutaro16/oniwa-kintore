@@ -4,7 +4,7 @@
    ・お庭：運動を終えるたびにお水をあげて植物が育つ（枯れない）。やった日はカレンダーにお花のスタンプ
    データはこのiPhoneの中（localStorage）だけに保存する。外へは送らない */
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const KEY = 'kintore-garden-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -89,6 +89,7 @@ function migrate() {
 }
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { toast('保存できませんでした'); }
+  if (typeof refreshMoveUrl === 'function') refreshMoveUrl();
 }
 const curMenu = () => S.menus.find((m) => m.id === S.cur) || S.menus[0];
 
@@ -915,38 +916,117 @@ function pasteCode() {
     };
   }).then((data) => (data ? applyData(data) : false));
 }
-// Safariで開いたとき：ホーム画面に置くやり方（記録があればコピーから）
+/* ホーム画面に追加するだけで記録が付いていく仕組み（v1.3）
+   Safariで開いている間、記録をページの住所の「#」のうしろ（サーバーには送られない部分）と
+   ホーム画面用の設定（manifest の start_url）に入れておく。「ホーム画面に追加」するとその住所でアイコンが作られ、
+   アイコンで初めて開いたとき、住所の中の記録を読み込む */
+const MOVE_TAG = '#move=';
+const b64url = (bin) => { let s = ''; for (let i = 0; i < bin.length; i += 0x8000) s += String.fromCharCode(...bin.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64url = (t) => Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+async function squeeze(bin, dir) {
+  const S2 = dir === 'z' ? window.CompressionStream : window.DecompressionStream;
+  return new Uint8Array(await new Response(new Blob([bin]).stream().pipeThrough(new S2('deflate-raw'))).arrayBuffer());
+}
+// 記録 → 住所に入れる文字（縮められるiPhoneでは縮める。z=縮めた・p=そのまま）
+async function packData() {
+  const { ui, ...rest } = S;
+  const bin = new TextEncoder().encode(JSON.stringify(rest));
+  if (window.CompressionStream) { try { return 'z' + b64url(await squeeze(bin, 'z')); } catch { /* そのまま */ } }
+  return 'p' + b64url(bin);
+}
+async function unpackData(t) {
+  try {
+    let bin = unb64url(t.slice(1));
+    if (t[0] === 'z') bin = await squeeze(bin, 'u');
+    const d = JSON.parse(new TextDecoder().decode(bin));
+    return validData(d) ? d : null;
+  } catch { return null; }
+}
+const appBase = () => location.href.split('#')[0].split('?')[0];
+let moveTimer = 0;
+// Safariで開いている間、住所とホーム画面用の設定を今の記録に合わせておく
+function refreshMoveUrl() {
+  if (STANDALONE) return;
+  clearTimeout(moveTimer);
+  moveTimer = setTimeout(async () => {
+    try {
+      const url = appBase() + MOVE_TAG + (await packData());
+      history.replaceState(null, '', url);
+      const base = appBase().replace(/[^/]*$/, '');
+      const mf = {
+        name: '毎日トレーニング', short_name: '毎日トレーニング', start_url: url, scope: base, display: 'standalone',
+        orientation: 'portrait', background_color: '#F7F1EC', theme_color: '#F7F1EC',
+        icons: [{ src: `${base}icon-180.png`, sizes: '180x180', type: 'image/png' }, { src: `${base}icon-512.png`, sizes: '512x512', type: 'image/png' }],
+      };
+      const link = $('link[rel="manifest"]');
+      if (link) link.href = `data:application/manifest+json,${encodeURIComponent(JSON.stringify(mf))}`;
+    } catch { /* 住所に入れられなくても、アプリはそのまま使える */ }
+  }, 600);
+}
+// アイコンで開いたとき：住所に記録が入っていれば読み込む
+async function takeFromUrl() {
+  const i = location.href.indexOf(MOVE_TAG);
+  if (i < 0) return false;
+  const d = await unpackData(location.href.slice(i + MOVE_TAG.length));
+  history.replaceState(null, '', appBase());
+  if (!d || S.ui?.moved) return false;
+  if (!isEmpty()) {
+    // すでにアイコンで使っているときは、Safariのほうが記録が多いときだけ聞く
+    if (d.log.length <= S.log.length || !(await confirmBox(`Safariで使っていた記録（運動${d.log.length}回）を引き継ぎますか？\n今ここにある記録（運動${S.log.length}回）は置きかわります。`, '引き継ぐ', true))) {
+      S.ui = { ...S.ui, moved: true }; save(); return false;
+    }
+  }
+  localStorage.setItem(KEY, JSON.stringify({ ...d, ui: { moved: true, takeOverAsked: true } }));
+  load(); resetTimer(); render();
+  await ask(`<h3 class="dlg-title">記録を引き継ぎました</h3>
+    <p class="dlg-msg">Safariで使っていた記録（運動${d.log.length}回・咲いた花${d.garden.blooms || 0}本）が入りました。<br>これからは、このアイコンから開いてください。</p>
+    <div class="dlg-btns"><button type="button" class="btn" data-x>はじめる</button></div>`,
+  'center', (dl, fin) => { $('[data-x]', dl).onclick = () => fin(null); });
+  return true;
+}
+// Safariで開いたとき：ホーム画面に置くやり方（追加するだけで記録も付いていく）
 function homeGuide() {
   S.ui = { ...S.ui, homeHint: Date.now() }; save();
   const has = !isEmpty();
   return ask(`<h3 class="dlg-title">ホーム画面に置きましょう</h3>
-    <p class="dlg-sub">Safariは、しばらく開かないと記録を消すことがあります。ホーム画面に置くと消えにくくなります。</p>
+    <p class="dlg-sub">Safariは、しばらく開かないと記録を消すことがあります。ホーム画面に置くと消えにくくなります。${has ? '<br><b>今までの記録も、そのまま付いていきます。</b>' : ''}</p>
     <ol class="guide">
-      ${has ? '<li>下の<b>「引き継ぎコードをコピー」</b>を押す</li>' : ''}
-      <li>画面の下の<b>共有ボタン</b>（四角に↑）→<b>「ホーム画面に追加」</b></li>
-      <li>ホーム画面の<b>アイコン</b>から開く${has ? '→<b>「貼り付けて引き継ぐ」</b>' : ''}</li>
-      <li>これからは<b>アイコン</b>から開いてください</li>
+      <li>画面の下の<b>共有ボタン</b>（四角に↑）を押す</li>
+      <li><b>「ホーム画面に追加」</b>→<b>「追加」</b></li>
+      <li>これからは、ホーム画面の<b>アイコン</b>から開く</li>
     </ol>
-    ${has ? '<button type="button" class="btn wide" data-copy>引き継ぎコードをコピー</button>' : ''}
-    <div class="dlg-btns"><button type="button" class="btn ghost" data-x>あとで</button></div>`,
-  'center', (d, fin) => {
-    $('[data-x]', d).onclick = () => fin(null);
-    const c = $('[data-copy]', d);
-    if (c) c.onclick = async () => { if (await copyCode()) { c.textContent = 'コピーしました ✓'; c.classList.add('done'); } };
-  });
+    <p class="guide-note">すでにアイコンがあるときは、アイコンを長押しして削除してから、もう一度ここから追加してください。</p>
+    <div class="dlg-btns"><button type="button" class="btn ghost" data-x>あとで</button><button type="button" class="btn" data-x>わかった</button></div>`,
+  'center', (d, fin) => { $$('[data-x]', d).forEach((b) => { b.onclick = () => fin(null); }); });
 }
-// ホーム画面で初めて開いて記録が空のとき：Safariの記録を引き継ぐか聞く
+// アイコンで初めて開いて記録が空のとき（住所に記録がなかったとき）
 async function askTakeOver() {
   const v = await ask(`<h3 class="dlg-title">ようこそ</h3>
-    <p class="dlg-msg">Safari（リンク）で使っていた記録はありますか？<br><small>ホーム画面のアイコンとSafariでは、記録が別々です</small></p>
-    <button type="button" class="btn wide" data-v="take">ある：記録を引き継ぐ</button>
+    <p class="dlg-msg">Safari（リンク）で使っていた記録はありますか？</p>
+    <button type="button" class="btn wide" data-v="take">ある</button>
     <div class="dlg-btns"><button type="button" class="btn ghost" data-v="new">ない：はじめて使う</button></div>`,
   'center', (d, fin) => { $$('[data-v]', d).forEach((b) => { b.onclick = () => fin(b.dataset.v); }); });
-  if (v === 'new') { S.ui = { ...S.ui, takeOverAsked: true }; save(); }
-  if (v === 'take') await pasteCode();
+  if (v === 'new') { S.ui = { ...S.ui, takeOverAsked: true }; save(); return; }
+  if (v !== 'take') return;
+  const w = await ask(`<h3 class="dlg-title">記録を引き継ぐには</h3>
+    <ol class="guide">
+      <li>このアイコンを<b>長押し</b>して<b>削除</b></li>
+      <li>Safariで<b>いつものリンク</b>を開く</li>
+      <li><b>共有ボタン</b>（四角に↑）→<b>「ホーム画面に追加」</b></li>
+      <li>新しいアイコンを開くと、記録が入っています</li>
+    </ol>
+    <div class="dlg-btns"><button type="button" class="btn" data-x>わかった</button></div>
+    <button type="button" class="txtlink" data-code>引き継ぎコードで移す（くわしい人向け）</button>`,
+  'center', (d, fin) => { $('[data-x]', d).onclick = () => fin(null); $('[data-code]', d).onclick = () => fin('code'); });
+  if (w === 'code') await pasteCode();
 }
-function startHint() {
-  if (STANDALONE) { if (isEmpty() && !S.ui?.takeOverAsked) askTakeOver(); return; }
+async function startHint() {
+  if (STANDALONE) {
+    if (await takeFromUrl()) return;
+    if (isEmpty() && !S.ui?.takeOverAsked) askTakeOver();
+    return;
+  }
+  refreshMoveUrl();
   if (Date.now() - (S.ui?.homeHint || 0) > 7 * 864e5) homeGuide();
 }
 
