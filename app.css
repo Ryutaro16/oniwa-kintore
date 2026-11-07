@@ -287,6 +287,15 @@ dialog.center { width: min(90vw, 380px); border-radius: 28px; padding: 22px 20px
 .st-val { min-width: 150px; text-align: center; font-size: 36px; font-weight: 800; }
 .dlg-input { width: 100%; border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 18px; margin-top: 10px; outline: none; }
 .dlg-input:focus { border-color: var(--rose); }
+/* 引き継ぎ */
+.code-box { font-size: 13px; line-height: 1.4; resize: none; word-break: break-all; font-family: ui-monospace, Menlo, monospace; }
+.code-err { color: #B35A66; font-size: 14px; font-weight: 700; margin: 8px 2px 0; line-height: 1.5; }
+.guide { margin: 6px 0 16px; padding-left: 1.4em; font-size: 16px; line-height: 1.7; }
+.guide li { margin: 4px 0; }
+.btn.wide { display: block; width: 100%; margin-top: 4px; }
+.btn.done { background: var(--sage); }
+.btn.sm { flex: 0 0 30%; }
+.dlg-msg small { font-size: 13px; color: var(--ink2); }
 .pick-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .pick-item { text-align: left; border: 2px solid var(--line); background: var(--card); border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; }
 .pick-item b { font-size: 18px; }

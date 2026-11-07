@@ -4,7 +4,7 @@
    ・お庭：運動を終えるたびにお水をあげて植物が育つ（枯れない）。やった日はカレンダーにお花のスタンプ
    データはこのiPhoneの中（localStorage）だけに保存する。外へは送らない */
 
-const VERSION = '1.1.2';
+const VERSION = '1.2.0';
 const KEY = 'kintore-garden-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -730,10 +730,13 @@ function settingsHTML() {
     </div>
     <h2 class="sec-title">データ</h2>
     <div class="rows card">
+      ${STANDALONE ? '' : `<button type="button" class="row" data-act="homeGuide"><span class="r-main"><b>ホーム画面に置く</b><small>記録が消えにくくなります。やり方を見る</small></span><span class="ic chev">${IC.chev}</span></button>`}
+      <button type="button" class="row" data-act="copyCode"><span class="r-main"><b>引き継ぎコードをコピー</b><small>Safariとホーム画面のあいだや、機種変更のときに</small></span><span class="ic chev">${IC.chev}</span></button>
+      <button type="button" class="row" data-act="pasteCode"><span class="r-main"><b>引き継ぎコードを貼り付ける</b><small>コピーした記録をここに移します</small></span><span class="ic chev">${IC.chev}</span></button>
       <button type="button" class="row" data-act="backup"><span class="r-main"><b>バックアップを書き出す</b><small>機種変更のときなどに。ファイルに保存します</small></span><span class="ic chev">${IC.chev}</span></button>
       <label class="row"><span class="r-main"><b>バックアップから戻す</b><small>書き出したファイルを読み込みます</small></span><input type="file" accept=".json,application/json" id="restore" hidden><span class="ic chev">${IC.chev}</span></label>
     </div>
-    <p class="about">毎日トレーニング v${VERSION}<br>記録はこのiPhoneの中にだけ保存されます。</p>
+    <p class="about">毎日トレーニング v${VERSION}（今は${STANDALONE ? 'ホーム画面のアイコン' : 'Safari'}で開いています）<br>記録はこのiPhoneの中にだけ保存されます。<br>Safariとホーム画面のアイコンでは、記録は別々です。</p>
   </div>`;
 }
 
@@ -755,7 +758,7 @@ function ask(html, cls, bind) {
   });
 }
 const confirmBox = (msg, ok = 'はい', danger = false) => ask(
-  `<p class="dlg-msg">${esc(msg)}</p><div class="dlg-btns"><button type="button" class="btn ghost" data-v="0">やめる</button><button type="button" class="btn ${danger ? 'danger' : ''}" data-v="1">${esc(ok)}</button></div>`,
+  `<p class="dlg-msg">${esc(msg).replace(/\n/g, '<br>')}</p><div class="dlg-btns"><button type="button" class="btn ghost" data-v="0">やめる</button><button type="button" class="btn ${danger ? 'danger' : ''}" data-v="1">${esc(ok)}</button></div>`,
   'center', (d, fin) => { $$('[data-v]', d).forEach((b) => { b.onclick = () => fin(b.dataset.v === '1'); }); },
 ).then((v) => !!v);
 function pickValue(fd, value) {
@@ -852,6 +855,101 @@ function zukanDetail(i) {
     </table>
     <div class="dlg-btns"><button type="button" class="btn" data-x>とじる</button></div>`, 'sheet', (d, fin) => { $('[data-x]', d).onclick = () => fin(null); });
 }
+/* ---------- 引き継ぎ（Safari ⇄ ホーム画面） ----------
+   iPhoneでは、Safariとホーム画面のアイコンで記録の置き場所が別々になる。
+   記録を文字の「引き継ぎコード」にしてコピー→もう一方で貼り付けて移す（外へは送らない） */
+const STANDALONE = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+const CODE_HEAD = 'MAINICHI-TRAINING:';
+const isEmpty = () => !S.log.length && !S.garden.water && !S.garden.blooms;
+const validData = (d) => d && Array.isArray(d.menus) && d.garden && Array.isArray(d.log);
+function makeCode() {
+  const bin = new TextEncoder().encode(JSON.stringify(S));
+  let s = '';
+  for (let i = 0; i < bin.length; i += 0x8000) s += String.fromCharCode(...bin.subarray(i, i + 0x8000));
+  return CODE_HEAD + btoa(s);
+}
+function readCode(text) {
+  const i = String(text || '').indexOf(CODE_HEAD);
+  if (i < 0) return null;
+  const b64 = text.slice(i + CODE_HEAD.length).trim().split(/\s+/)[0];
+  try {
+    const s = atob(b64);
+    const d = JSON.parse(new TextDecoder().decode(Uint8Array.from(s, (c) => c.charCodeAt(0))));
+    return validData(d) ? d : null;
+  } catch { return null; }
+}
+// 引き継ぐ記録で、今の記録を置きかえる
+async function applyData(d) {
+  const now = isEmpty() ? '' : `\n今ここにある記録（運動${S.log.length}回）は置きかわります。`;
+  if (!(await confirmBox(`運動${d.log.length}回・咲いた花${d.garden.blooms || 0}本の記録を引き継ぎますか？${now}`, '引き継ぐ', !!now))) return false;
+  localStorage.setItem(KEY, JSON.stringify(d));
+  load(); resetTimer(); render();
+  toast('記録を引き継ぎました');
+  return true;
+}
+async function copyCode() {
+  const code = makeCode();
+  try { await navigator.clipboard.writeText(code); toast('引き継ぎコードをコピーしました'); return true; } catch { /* 下で手でコピー */ }
+  await ask(`<h3 class="dlg-title">引き継ぎコード</h3><p class="dlg-sub">下の文字を長押しして「すべてを選択」→「コピー」</p>
+    <textarea class="dlg-input code-box" rows="4" readonly>${esc(code)}</textarea>
+    <div class="dlg-btns"><button type="button" class="btn" data-x>とじる</button></div>`,
+  'center', (d, fin) => { $('[data-x]', d).onclick = () => fin(null); });
+  return false;
+}
+function pasteCode() {
+  return ask(`<h3 class="dlg-title">記録を引き継ぐ</h3><p class="dlg-sub">もう一方でコピーした「引き継ぎコード」を貼り付けます</p>
+    <textarea class="dlg-input code-box" rows="3" placeholder="うまくいかないときは、ここを長押し→「ペースト」"></textarea>
+    <p class="code-err" hidden></p>
+    <div class="dlg-btns"><button type="button" class="btn ghost sm" data-x>やめる</button><button type="button" class="btn" data-ok>貼り付けて引き継ぐ</button></div>`,
+  'center', (d, fin) => {
+    const box = $('.code-box', d);
+    const err = (msg) => { const e = $('.code-err', d); e.textContent = msg; e.hidden = false; };
+    $('[data-x]', d).onclick = () => fin(null);
+    $('[data-ok]', d).onclick = async () => {
+      let text = box.value;
+      if (!text.trim()) { try { text = await navigator.clipboard.readText(); } catch { text = ''; } }
+      if (!text.trim()) { err('コピーした文字が見つかりません。上の枠を長押しして「ペースト」を押してください'); box.focus(); return; }
+      const data = readCode(text);
+      if (!data) { err('引き継ぎコードではないようです。もう一方で「引き継ぎコードをコピー」からやり直してください'); return; }
+      fin(data);
+    };
+  }).then((data) => (data ? applyData(data) : false));
+}
+// Safariで開いたとき：ホーム画面に置くやり方（記録があればコピーから）
+function homeGuide() {
+  S.ui = { ...S.ui, homeHint: Date.now() }; save();
+  const has = !isEmpty();
+  return ask(`<h3 class="dlg-title">ホーム画面に置きましょう</h3>
+    <p class="dlg-sub">Safariは、しばらく開かないと記録を消すことがあります。ホーム画面に置くと消えにくくなります。</p>
+    <ol class="guide">
+      ${has ? '<li>下の<b>「引き継ぎコードをコピー」</b>を押す</li>' : ''}
+      <li>画面の下の<b>共有ボタン</b>（四角に↑）→<b>「ホーム画面に追加」</b></li>
+      <li>ホーム画面の<b>アイコン</b>から開く${has ? '→<b>「貼り付けて引き継ぐ」</b>' : ''}</li>
+      <li>これからは<b>アイコン</b>から開いてください</li>
+    </ol>
+    ${has ? '<button type="button" class="btn wide" data-copy>引き継ぎコードをコピー</button>' : ''}
+    <div class="dlg-btns"><button type="button" class="btn ghost" data-x>あとで</button></div>`,
+  'center', (d, fin) => {
+    $('[data-x]', d).onclick = () => fin(null);
+    const c = $('[data-copy]', d);
+    if (c) c.onclick = async () => { if (await copyCode()) { c.textContent = 'コピーしました ✓'; c.classList.add('done'); } };
+  });
+}
+// ホーム画面で初めて開いて記録が空のとき：Safariの記録を引き継ぐか聞く
+async function askTakeOver() {
+  const v = await ask(`<h3 class="dlg-title">ようこそ</h3>
+    <p class="dlg-msg">Safari（リンク）で使っていた記録はありますか？<br><small>ホーム画面のアイコンとSafariでは、記録が別々です</small></p>
+    <button type="button" class="btn wide" data-v="take">ある：記録を引き継ぐ</button>
+    <div class="dlg-btns"><button type="button" class="btn ghost" data-v="new">ない：はじめて使う</button></div>`,
+  'center', (d, fin) => { $$('[data-v]', d).forEach((b) => { b.onclick = () => fin(b.dataset.v); }); });
+  if (v === 'new') { S.ui = { ...S.ui, takeOverAsked: true }; save(); }
+  if (v === 'take') await pasteCode();
+}
+function startHint() {
+  if (STANDALONE) { if (isEmpty() && !S.ui?.takeOverAsked) askTakeOver(); return; }
+  if (Date.now() - (S.ui?.homeHint || 0) > 7 * 864e5) homeGuide();
+}
+
 function toast(msg) {
   const t = $('#toast');
   t.textContent = msg; t.hidden = false;
@@ -965,6 +1063,9 @@ const ACT = {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   },
+  copyCode: () => copyCode(),
+  pasteCode: () => pasteCode(),
+  homeGuide: () => homeGuide(),
 };
 function keepScroll(fn) {
   const y = $('#main').scrollTop;
@@ -990,7 +1091,7 @@ document.addEventListener('change', async (e) => {
   if (t.id === 'restore' && t.files[0]) {
     try {
       const d = JSON.parse(await t.files[0].text());
-      if (!Array.isArray(d.menus) || !d.garden || !Array.isArray(d.log)) throw new Error('形式');
+      if (!validData(d)) throw new Error('形式');
       if (!(await confirmBox(`バックアップ（記録${d.log.length}件）で、今のデータを置きかえますか？`, '置きかえる', true))) { t.value = ''; return; }
       localStorage.setItem(KEY, JSON.stringify(d));
       load(); resetTimer(); toast('バックアップから戻しました'); render();
@@ -1008,6 +1109,7 @@ try { if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {}; } 
 load();
 resetTimer();
 render();
+startHint();
 try { navigator.storage?.persist?.(); } catch { /* なし */ }
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
