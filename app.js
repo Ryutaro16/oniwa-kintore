@@ -4,7 +4,7 @@
    ・お庭：運動を終えるたびにお水をあげて植物が育つ（枯れない）。やった日はカレンダーにお花のスタンプ
    データはこのiPhoneの中（localStorage）だけに保存する。外へは送らない */
 
-const VERSION = '1.3.1';
+const VERSION = '1.3.2';
 const KEY = 'kintore-garden-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -870,7 +870,9 @@ function makeCode() {
   return CODE_HEAD + btoa(s);
 }
 function readCode(text) {
-  const i = String(text || '').indexOf(CODE_HEAD);
+  // iPhoneやメッセージアプリが頭の文字を小文字にすることがあるので、大文字・小文字は区別しない
+  text = String(text || '');
+  const i = text.toUpperCase().indexOf(CODE_HEAD);
   if (i < 0) return null;
   const b64 = text.slice(i + CODE_HEAD.length).trim().split(/\s+/)[0];
   try {
@@ -899,7 +901,7 @@ async function copyCode() {
 }
 function pasteCode() {
   return ask(`<h3 class="dlg-title">記録を引き継ぐ</h3><p class="dlg-sub">もう一方でコピーした「引き継ぎコード」を貼り付けます</p>
-    <textarea class="dlg-input code-box" rows="3" placeholder="うまくいかないときは、ここを長押し→「ペースト」"></textarea>
+    <textarea class="dlg-input code-box" rows="3" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="うまくいかないときは、ここを長押し→「ペースト」"></textarea>
     <p class="code-err" hidden></p>
     <div class="dlg-btns"><button type="button" class="btn ghost sm" data-x>やめる</button><button type="button" class="btn" data-ok>貼り付けて引き継ぐ</button></div>`,
   'center', (d, fin) => {
