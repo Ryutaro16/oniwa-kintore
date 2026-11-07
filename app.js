@@ -4,7 +4,7 @@
    ・お庭：運動を終えるたびにお水をあげて植物が育つ（枯れない）。やった日はカレンダーにお花のスタンプ
    データはこのiPhoneの中（localStorage）だけに保存する。外へは送らない */
 
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 const KEY = 'kintore-garden-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -986,7 +986,7 @@ async function takeFromUrl() {
 }
 // Safariで開いたとき：ホーム画面に置くやり方（追加するだけで記録も付いていく）
 function homeGuide() {
-  S.ui = { ...S.ui, homeHint: Date.now() }; save();
+  S.ui = { ...S.ui, homeHint2: Date.now() }; save();
   const has = !isEmpty();
   return ask(`<h3 class="dlg-title">ホーム画面に置きましょう</h3>
     <p class="dlg-sub">Safariは、しばらく開かないと記録を消すことがあります。ホーム画面に置くと消えにくくなります。${has ? '<br><b>今までの記録も、そのまま付いていきます。</b>' : ''}</p>
@@ -1027,7 +1027,8 @@ async function startHint() {
     return;
   }
   refreshMoveUrl();
-  if (Date.now() - (S.ui?.homeHint || 0) > 7 * 864e5) homeGuide();
+  // v1.3 で案内が変わったので、前の版の案内を見た人にももう一度出す（homeHint → homeHint2）
+  if (Date.now() - (S.ui?.homeHint2 || 0) > 7 * 864e5) homeGuide();
 }
 
 function toast(msg) {
