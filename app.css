@@ -215,7 +215,6 @@ svg.fill { fill: currentColor !important; stroke: none !important; }
 .drops { position: relative; display: flex; justify-content: center; gap: 6px; margin: 10px 0 6px; }
 .drops { flex-wrap: wrap; }
 .drops span { width: 22px; }
-.drops.many span { width: 17px; }
 .drops svg { width: 100%; display: block; fill: #E6DCD5; }
 .drops .on svg { fill: var(--drop); }
 .p-hint { position: relative; margin: 4px 0 0; font-size: 15px; color: var(--ink); line-height: 1.6; }
@@ -248,7 +247,6 @@ svg.fill { fill: currentColor !important; stroke: none !important; }
 .coll-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .ci { background: var(--bg); border: 0; border-radius: 16px; padding: 8px 4px 8px; display: flex; flex-direction: column; align-items: center; font-size: 13px; font-weight: 700; }
 button.ci:active { transform: scale(.97); }
-.star { font-style: normal; font-size: 11px; color: #E2B04F; letter-spacing: 1px; }
 .ci-img { width: 70px; }
 .ci-img svg { width: 100%; display: block; }
 .ci em { font-style: normal; font-size: 12px; color: var(--rose-d); }
@@ -347,7 +345,6 @@ dialog.cel { overflow: hidden; text-align: center; background: linear-gradient(1
 .zk-tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
 .zk-tbl th { text-align: left; color: var(--ink2); font-weight: 700; padding: 8px 4px; border-top: 1px solid var(--line); width: 9em; }
 .zk-tbl td { padding: 8px 4px; border-top: 1px solid var(--line); font-weight: 700; }
-.zk-tbl .star { font-size: 14px; }
 
 /* 種目の名前を使う（切りかえ） */
 .sw.on { background: var(--sage-d); }
@@ -403,5 +400,3 @@ dialog.cel .petals { z-index: 4; }
 .coll-sub { font-size: 16px; font-weight: 800; margin: 18px 4px 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .coll-sub small { font-size: 12px; font-weight: 700; color: var(--sage-d); }
 .p-bonus { margin: 8px 0 0; font-size: 14px; font-weight: 700; color: var(--sage-d); text-align: center; }
-.cel-water small { display: block; font-size: 13px; font-weight: 700; color: var(--ink2); }
-.cel-lucky { margin: 0 0 4px; font-size: 18px; font-weight: 800; color: var(--rose-d); }

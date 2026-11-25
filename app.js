@@ -4,7 +4,7 @@
    ・お庭：運動を終えるたびにお水をあげて植物が育つ（枯れない）。やった日はカレンダーにお花のスタンプ
    データはこのiPhoneの中（localStorage）だけに保存する。外へは送らない */
 
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const KEY = 'kintore-garden-v1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -30,44 +30,46 @@ const noEx = (m) => !m.exercises.length;
 const QUICK_EX = ['スクワット', '腕立て', '壁腕立て', 'もも上げ', 'かかと上げ', '腹筋', 'プランク', 'ランジ', 'その場足踏み', '肩まわし', 'ジャンプ', 'バーピー'];
 
 /* ---------- 植物 ---------- */
-// need＝咲くまでのお水の回数。どんどん咲くよう 3〜5回（v1.4。前は4〜14回）
+// どの花も、運動 NEED 回で1輪咲く（v1.5。v1.4 は花ごとに3〜5回、v1.3 までは4〜14回）
+const NEED = 5;
 const PLANTS = [
-  { id: 'tulip', name: 'チューリップ', type: 'tulip', color: '#E8879B', need: 3, word: '思いやり' },
-  { id: 'gerbera', name: 'ガーベラ', type: 'daisy', color: '#F2A07B', center: '#8A5A3B', n: 16, r: 28, need: 3, word: '希望・前進' },
-  { id: 'sunflower', name: 'ひまわり', type: 'daisy', color: '#F3C64F', center: '#7A5230', n: 14, r: 34, need: 4, word: 'あこがれ' },
-  { id: 'hydrangea', name: 'あじさい', type: 'cluster', color: '#9FB3E3', color2: '#B9A3DA', need: 4, word: '辛抱強い愛情' },
-  { id: 'rose', name: 'バラ', type: 'rose', color: '#D45D74', need: 4, word: '愛・美' },
-  { id: 'lavender', name: 'ラベンダー', type: 'spike', color: '#A88BCF', need: 4, word: '期待' },
-  { id: 'sakura', name: '桜', type: 'tree', color: '#F5B8C6', need: 5, word: '精神の美' },
-  { id: 'orchid', name: 'こちょうらん', type: 'orchid', color: '#FBF1F5', center: '#D9779A', need: 5, word: '幸福が飛んでくる' },
-  { id: 'pineapple', name: 'パイナップル', type: 'pine', color: '#E9B949', need: 5, word: '完全無欠' },
+  { id: 'tulip', name: 'チューリップ', type: 'tulip', color: '#E8879B', word: '思いやり' },
+  { id: 'gerbera', name: 'ガーベラ', type: 'daisy', color: '#F2A07B', center: '#8A5A3B', n: 16, r: 28, word: '希望・前進' },
+  { id: 'sunflower', name: 'ひまわり', type: 'daisy', color: '#F3C64F', center: '#7A5230', n: 14, r: 34, word: 'あこがれ' },
+  { id: 'hydrangea', name: 'あじさい', type: 'cluster', color: '#9FB3E3', color2: '#B9A3DA', word: '辛抱強い愛情' },
+  { id: 'rose', name: 'バラ', type: 'rose', color: '#D45D74', word: '愛・美' },
+  { id: 'lavender', name: 'ラベンダー', type: 'spike', color: '#A88BCF', word: '期待' },
+  { id: 'sakura', name: '桜', type: 'tree', color: '#F5B8C6', word: '精神の美' },
+  { id: 'orchid', name: 'こちょうらん', type: 'orchid', color: '#FBF1F5', center: '#D9779A', word: '幸福が飛んでくる' },
+  { id: 'pineapple', name: 'パイナップル', type: 'pine', color: '#E9B949', word: '完全無欠' },
   // 冬のお花（v1.4）。記録がずれないよう、新しい花はいつも最後に足す（並べかえない）。verb＝咲いたときの言い方
-  { id: 'poinsettia', name: 'ポインセチア', type: 'poinsettia', color: '#CF4655', need: 3, word: '祝福・幸運を祈る', winter: true },
-  { id: 'holly', name: '西洋ヒイラギ', type: 'holly', color: '#D2434F', need: 3, word: '将来の見通し', winter: true, verb: '赤い実をつけました' },
-  { id: 'xmasrose', name: 'クリスマスローズ', type: 'xmasrose', color: '#F3DFDC', bud: '#E9C6C8', need: 4, word: 'いたわり', winter: true },
-  { id: 'mistletoe', name: 'ヤドリギ', type: 'mistletoe', color: '#9BB86B', bud: '#C9D8A0', need: 4, word: '困難に打ち勝つ', winter: true, verb: '白い実をつけました' },
-  { id: 'cotton', name: 'コットンフラワー', type: 'cotton', color: '#FFFDF8', bud: '#B9C79A', need: 4, word: '私を包んで', winter: true, verb: 'ふわふわに開きました' },
-  { id: 'cyclamen', name: 'シクラメン', type: 'cyclamen', color: '#E58FB0', need: 4, word: 'はにかみ', winter: true },
-  { id: 'nandina', name: '南天', type: 'nandina', color: '#D2434F', need: 4, word: '福をなす・よい家庭', winter: true, verb: '赤い実をつけました' },
-  { id: 'adonis', name: '福寿草', type: 'adonis', color: '#F5C93B', need: 4, word: '幸せを招く', winter: true },
-  { id: 'camellia', name: '椿', type: 'camellia', color: '#C93F55', need: 5, word: '控えめなすばらしさ', winter: true },
-  { id: 'snowdrop', name: 'スノードロップ', type: 'snowdrop', color: '#FDFBF8', bud: '#E9EFE0', need: 5, word: '希望', winter: true },
+  { id: 'poinsettia', name: 'ポインセチア', type: 'poinsettia', color: '#CF4655', word: '祝福・幸運を祈る', winter: true },
+  { id: 'holly', name: '西洋ヒイラギ', type: 'holly', color: '#D2434F', word: '将来の見通し', winter: true, verb: '赤い実をつけました' },
+  { id: 'xmasrose', name: 'クリスマスローズ', type: 'xmasrose', color: '#F3DFDC', bud: '#E9C6C8', word: 'いたわり', winter: true },
+  { id: 'mistletoe', name: 'ヤドリギ', type: 'mistletoe', color: '#9BB86B', bud: '#C9D8A0', word: '困難に打ち勝つ', winter: true, verb: '白い実をつけました' },
+  { id: 'cotton', name: 'コットンフラワー', type: 'cotton', color: '#FFFDF8', bud: '#B9C79A', word: '私を包んで', winter: true, verb: 'ふわふわに開きました' },
+  { id: 'cyclamen', name: 'シクラメン', type: 'cyclamen', color: '#E58FB0', word: 'はにかみ', winter: true },
+  { id: 'nandina', name: '南天', type: 'nandina', color: '#D2434F', word: '福をなす・よい家庭', winter: true, verb: '赤い実をつけました' },
+  { id: 'adonis', name: '福寿草', type: 'adonis', color: '#F5C93B', word: '幸せを招く', winter: true },
+  { id: 'camellia', name: '椿', type: 'camellia', color: '#C93F55', word: '控えめなすばらしさ', winter: true },
+  { id: 'snowdrop', name: 'スノードロップ', type: 'snowdrop', color: '#FDFBF8', bud: '#E9EFE0', word: '希望', winter: true },
 ];
 const OLD_PLANTS = 9; // v1.3 までの花の数
 const OLD_NEED = [4, 5, 6, 7, 8, 9, 10, 12, 14]; // v1.3 までの咲くまでの回数（育てている途中の花を移すときに使う）
+// v1.4 の咲くまでの回数（同じく移すときと、v1.4 でも読める形で保存するときに使う）
+const V14_NEED = { tulip: 3, gerbera: 3, sunflower: 4, hydrangea: 4, rose: 4, lavender: 4, sakura: 5, orchid: 5, pineapple: 5, poinsettia: 3, holly: 3, xmasrose: 4, mistletoe: 4, cotton: 4, cyclamen: 4, nandina: 4, adonis: 4, camellia: 5, snowdrop: 5 };
+const v14Need = (i) => V14_NEED[PLANTS[i].id] ?? NEED;
 const STAGES = ['たね', '芽', 'ふたば', 'つぼみ', '花'];
-// お水 w 回のときの育ち具合（0〜4）。1回で芽、need回で花、そのあいだを3等分
-const stageOf = (w, need) => (w <= 0 ? 0 : w >= need ? 4 : 1 + Math.floor(((w - 1) * 3) / (need - 1)));
-const needOf = (i) => PLANTS[i].need;
-const stars = (need) => '★'.repeat(Math.max(1, need - 2));
-// 同じ姿が2回続くとき（5回の花の芽）は、1回目を少し小さく描いて、毎回育ったことが分かるようにする
-const growOf = (w, need) => (w > 0 && w < need && stageOf(w, need) === stageOf(w + 1, need) ? 0.72 : 1);
+// お水 w 回のときの育ち具合（0〜4）。1回で芽、NEED回で花、そのあいだを3等分
+const stageOf = (w) => (w <= 0 ? 0 : w >= NEED ? 4 : 1 + Math.floor(((w - 1) * 3) / (NEED - 1)));
+// 同じ姿が2回続くとき（芽）は、1回目を少し小さく描いて、毎回育ったことが分かるようにする
+const growOf = (w) => (w > 0 && w < NEED && stageOf(w) === stageOf(w + 1) ? 0.72 : 1);
 const STAGE_MSG = ['', '芽が出ました', 'ふたばになりました', 'つぼみができました', '咲きました'];
 const bloomWord = (p) => p.verb || '咲きました';
 // これから出る花（まだ咲かせていない花）の順番。11〜2月は冬のお花が先、ほかの季節はあとまわし
 function upcoming() {
   const g = S.garden;
-  const yet = PLANTS.map((p, i) => i).filter((i) => !g.coll[PLANTS[i].id] && !(i === g.plant && g.water < needOf(i)));
+  const yet = PLANTS.map((p, i) => i).filter((i) => !g.coll[PLANTS[i].id] && !(i === g.plant && g.water < NEED));
   const isWinter = [11, 12, 1, 2].includes(new Date().getMonth() + 1);
   const first = yet.filter((i) => !!PLANTS[i].winter === isWinter);
   return [...first, ...yet.filter((i) => !first.includes(i))];
@@ -105,7 +107,7 @@ function load(first = false) {
     if (first && raw) keepBroken(raw);
   }
   S = { ...base, ver: VERSION };
-  S.garden.nv = 2;
+  S.garden.nv = 3;
   return !raw;
 }
 // 新しい版で初めて開いたとき、直前のデータの控えを端末の中に1つ残す（記録が多いほうを残す）
@@ -145,6 +147,8 @@ function replaceData(d) {
     return false;
   }
 }
+// v1.4 のお水の数 → 今の数（あと◯回を変えない。たねのままなら 0）
+const fromV14 = (i, w) => (w <= 0 ? 0 : Math.max(0, NEED - Math.max(0, v14Need(i) - w)));
 // 前の版のデータを今の形に合わせる
 function migrate(old) {
   // タバタ（はじめから入っていたもの）は「かんたんタイマー」に置き換える
@@ -167,23 +171,31 @@ function migrate(old) {
   const pi = newShape && !moved ? PLANTS.findIndex((p) => p.id === g.pid) : -1;
   if (pi >= 0) g.plant = pi;
   if (!PLANTS[g.plant]) g.plant = 0;
-  const need = needOf(g.plant);
+  const w5 = old.nv === 3 && Number.isInteger(old.w5) && old.w5 >= 0 && old.w5 <= NEED ? old.w5 : -1;
   if (newShape && !touched) {
-    if (g.water > need) g.water = need;
+    if (w5 >= 0) g.water = w5;
+    else if (old.nv === 3) g.water = Math.min(g.water, NEED);
+    // v1.4 から：咲いていた花は咲いたまま、育ち途中の花は「あと◯回」を変えない
+    else g.water = fromV14(g.plant, g.water);
+  } else if (w5 >= 0 && w5 < NEED && !moved && g.water > old.stamp[1] && g.water < (OLD_NEED[g.plant] ?? Infinity)) {
+    // 前の版で育てた分を足す（咲くところは、かならずこの版で数える）
+    g.water = Math.min(w5 + g.water - old.stamp[1], NEED - 1);
   } else {
     // 前の版の数え方：咲いていた花は咲いたまま、育ち途中の花は「あと1回で咲く」までにする（いちばん古い版はどの花も7回）
     const oldNeed = !newShape && !Array.isArray(old.hist) ? 7 : OLD_NEED[g.plant] ?? Infinity;
-    g.water = g.water >= oldNeed ? need : Math.min(g.water, need - 1);
+    g.water = g.water >= oldNeed ? NEED : Math.max(Math.min(g.water, NEED - 1), fromV14(g.plant, Math.min(g.water, v14Need(g.plant) - 1)));
   }
   // まだ一度も咲いたことになっていない花は、かならず「咲くところ」から（数え落とさない）
-  if (g.water >= need && !g.coll[PLANTS[g.plant].id]) g.water = need - 1;
-  g.nv = 2;
+  if (g.water >= NEED && !g.coll[PLANTS[g.plant].id]) g.water = NEED - 1;
+  g.nv = 3;
 }
 // 保存する形。番号は前の版でも読める範囲にして、本当の花は pid に入れる（前の版で開いても壊れないように）
 function dataOut() {
   const g = S.garden;
   const plant = Math.min(g.plant, OLD_PLANTS - 1);
-  return { ...S, garden: { ...g, pid: PLANTS[g.plant].id, plant, stamp: [plant, g.water] } };
+  // water は前の版の回数に合わせた数（咲いた花は、どの版でも咲いたと分かる数）、本当の数は w5
+  const water = g.water >= NEED ? OLD_NEED[plant] : Math.min(g.water, v14Need(g.plant) - 1);
+  return { ...S, garden: { ...g, pid: PLANTS[g.plant].id, plant, water, w5: g.water, stamp: [plant, water] } };
 }
 function save() {
   if (saveBlocked) { toast('記録を読めなかったため、上書きを止めています'); return; }
@@ -381,50 +393,30 @@ function finishTimer() {
 /* ---------- お庭（記録と植物） ---------- */
 function water(n) {
   const g = S.garden;
-  const r = { newSeed: false, bloomed: false, lucky: 1, used: 0 };
-  if (g.water >= needOf(g.plant)) { // 前の花が咲いていたら、つぎのたねをまく
+  const r = { newSeed: false, bloomed: false, used: 0 };
+  if (g.water >= NEED) { // 前の花が咲いていたら、つぎのたねをまく
     g.plant = nextSeed();
     g.water = 0; r.newSeed = true;
   }
-  const need = needOf(g.plant);
   r.prevW = g.water;
-  while (n > 0 && g.water < need) { g.water++; n--; r.used++; }
-  g.bank = Math.min(5, n); // 咲いてあまったお水は、つぎのたねに使う
+  while (n > 0 && g.water < NEED) { g.water++; n--; r.used++; }
+  g.bank = Math.min(5, n); // v1.4 でたまったお水が残っていたら、つぎのたねに使う
   r.w = g.water;
-  r.stage = stageOf(r.w, need);
-  r.stageUp = r.stage > stageOf(r.prevW, need);
-  if (g.water >= need) {
-    const x = Math.random();
-    r.lucky = x < 0.08 ? 3 : x < 0.33 ? 2 : 1; // ときどき2〜3輪まとめて咲く
+  r.stage = stageOf(r.w);
+  r.stageUp = r.stage > stageOf(r.prevW);
+  if (g.water >= NEED) {
     const id = PLANTS[g.plant].id;
-    g.coll[id] = (g.coll[id] || 0) + r.lucky;
-    g.blooms += r.lucky;
-    for (let i = 0; i < r.lucky; i++) g.hist.push({ id, d: dayKey() });
+    g.coll[id] = (g.coll[id] || 0) + 1;
+    g.blooms++;
+    g.hist.push({ id, d: dayKey() });
     r.bloomed = true;
   }
   return r;
 }
-// ごほうびのお水（その日の1回目の運動だけ）。やめていた人が戻ったときも、もらえる
-function bonusWater() {
-  const today = dayKey();
-  if (S.log.filter((l) => l.d === today).length !== 1) return [];
-  const out = [];
-  const wc = weekCount(), st = streak();
-  if (wc === 3 || wc === 5) out.push(`今週${wc}日目`);
-  if (st > 0 && st % 3 === 0) out.push(`${st}日つづけて`);
-  const last = [...doneDays()].filter((d) => d < today).sort().pop();
-  if (last) {
-    const at = (k) => new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8));
-    if (Math.round((at(today) - at(last)) / 864e5) >= 7) out.push('おかえりなさい');
-  }
-  return out;
-}
 function addRecord({ kind, menu, sec }) {
   S.log.push({ d: dayKey(), t: Date.now(), kind, menu, sec });
   save(); // お水の計算の前に、運動した記録を残す
-  const bonus = bonusWater();
-  const r = water(1 + bonus.length + (S.garden.bank || 0));
-  r.bonus = bonus;
+  const r = water(1 + (S.garden.bank || 0)); // 運動1回でお水1回（bank は v1.4 でたまっていた分だけ）
   save();
   return r;
 }
@@ -683,7 +675,7 @@ function plantSVG(p, stage, cls = '', pot = true, size = 1) {
   return `<svg viewBox="0 0 200 ${pot ? 240 : 186}" class="${cls}" aria-hidden="true">${pot ? POT : GROUND}`
     + `<g class="sway" style="animation-delay:${delay}s">${size === 1 ? plantBody(p, stage) : `<g transform="translate(100 172) scale(${size}) translate(-100 -172)">${plantBody(p, stage)}</g>`}</g></svg>`;
 }
-const plantAt = (p, w) => plantSVG(p, stageOf(w, p.need), '', true, growOf(w, p.need)); // お水w回のときの姿
+const plantAt = (p, w) => plantSVG(p, stageOf(w), '', true, growOf(w)); // お水w回のときの姿
 const DROP = '<svg viewBox="0 0 20 24" aria-hidden="true"><path d="M10 2C10 2 3 11 3 15.5a7 7 0 0 0 14 0C17 11 10 2 10 2Z"/></svg>';
 const STAMP = `<svg viewBox="0 0 20 20" class="stamp" aria-hidden="true">${miniFlower(10, 10, 5.2, '#D98C9A', '#F6D8A8')}</svg>`;
 
@@ -882,22 +874,12 @@ function editHTML() {
 }
 
 /* お庭 */
-// つぎの「ごほうびのお水」まで
-function bonusHint() {
-  const bank = S.garden.bank || 0;
-  const wc = weekCount();
-  const left = wc < 3 ? 3 - wc : wc < 5 ? 5 - wc : 0;
-  const t = bank ? `💧 お水が<b>${bank}回分</b>たまっています。つぎの運動で使います`
-    : left ? `今週あと<b>${left}日</b>運動すると、ごほうびのお水💧` : '今週のごほうびのお水は、ぜんぶもらいました！';
-  return `<p class="p-bonus">${t}</p>`;
-}
 function gardenHTML() {
   const g = S.garden;
   const p = PLANTS[g.plant];
-  const need = needOf(g.plant);
-  const stage = stageOf(g.water, need);
+  const stage = stageOf(g.water);
   const se = season(new Date().getMonth() + 1);
-  const bloomed = g.water >= need;
+  const bloomed = g.water >= NEED;
   const today = dayKey();
   const manualDone = S.log.some((l) => l.d === today && l.kind === 'manual');
   return `<div class="page garden">
@@ -906,9 +888,9 @@ function gardenHTML() {
       <div class="falling">${Array.from({ length: 6 }, (_, i) => `<span style="--i:${i}">${se.deco}</span>`).join('')}</div>
       <div class="plant">${plantAt(p, g.water)}</div>
       <div class="pname">${esc(p.name)}<small>${STAGES[stage]}</small></div>
-      <div class="drops ${need > 9 ? 'many' : ''}">${Array.from({ length: need }, (_, i) => `<span class="${i < g.water ? 'on' : ''}">${DROP}</span>`).join('')}</div>
-      <p class="p-hint">${bloomed ? 'きれいに咲きました！ つぎの運動で、新しいたねから芽が出ます' : `運動するとお水をあげられます。あと<b>${need - g.water}回</b>で咲きます`}</p>
-      ${bonusHint()}
+      <div class="drops">${Array.from({ length: NEED }, (_, i) => `<span class="${i < g.water ? 'on' : ''}">${DROP}</span>`).join('')}</div>
+      <p class="p-hint">${bloomed ? 'きれいに咲きました！ つぎの運動で、新しいたねから芽が出ます' : `運動するとお水をあげられます。あと<b>${NEED - g.water}回</b>で咲きます`}</p>
+      ${g.bank ? `<p class="p-bonus">💧 お水が<b>${g.bank}回分</b>たまっています。つぎの運動で使います</p>` : ''}
     </section>
     <section class="stats">
       <div><b>${streak()}</b><span>日連続</span></div>
@@ -941,15 +923,14 @@ function yardHTML() {
 function zukanHTML() {
   const g = S.garden;
   const next = upcoming();
-  const bloomed = g.water >= needOf(g.plant);
+  const bloomed = g.water >= NEED;
   const cell = (pl, i) => {
     const n = g.coll[pl.id] || 0;
-    const st = `<i class="star">${stars(pl.need)}</i>`;
-    if (i === g.plant && !bloomed) return `<button type="button" class="ci grow" data-act="zukan" data-i="${i}"><div class="ci-img">${plantAt(pl, g.water)}</div><span>${esc(pl.name)}</span>${st}<em>育て中</em></button>`;
-    if (n) return `<button type="button" class="ci" data-act="zukan" data-i="${i}"><div class="ci-img">${plantSVG(pl, 4)}</div><span>${esc(pl.name)}</span>${st}<em>×${n}</em></button>`;
+    if (i === g.plant && !bloomed) return `<button type="button" class="ci grow" data-act="zukan" data-i="${i}"><div class="ci-img">${plantAt(pl, g.water)}</div><span>${esc(pl.name)}</span><em>育て中</em></button>`;
+    if (n) return `<button type="button" class="ci" data-act="zukan" data-i="${i}"><div class="ci-img">${plantSVG(pl, 4)}</div><span>${esc(pl.name)}</span><em>×${n}</em></button>`;
     const pos = next.indexOf(i);
-    if (pos === 0 && bloomed) return `<div class="ci grow"><div class="ci-img">${plantSVG(pl, 0)}</div><span>${esc(pl.name)}</span>${st}<em>つぎのたね</em></div>`;
-    return `<div class="ci lock"><div class="ci-img">${plantSVG(pl, 4)}</div><span>？？？</span>${st}<em>あと${pos + (bloomed ? 0 : 1)}本咲くと</em></div>`;
+    if (pos === 0 && bloomed) return `<div class="ci grow"><div class="ci-img">${plantSVG(pl, 0)}</div><span>${esc(pl.name)}</span><em>つぎのたね</em></div>`;
+    return `<div class="ci lock"><div class="ci-img">${plantSVG(pl, 4)}</div><span>？？？</span><em>あと${pos + (bloomed ? 0 : 1)}本咲くと</em></div>`;
   };
   const grid = (winter) => PLANTS.map((pl, i) => (!!pl.winter === winter ? cell(pl, i) : '')).join('');
   return `<section class="card coll">
@@ -1074,14 +1055,14 @@ function textBox(title, value = '') {
 function celebrate(r, sub) {
   const g = S.garden;
   const p = PLANTS[g.plant];
-  const remain = needOf(g.plant) - g.water;
+  const remain = NEED - g.water;
   const bloom = r.bloomed;
   let msg = '';
   if (r.newSeed) msg = `新しいたね「${p.name}」をまいて、${STAGE_MSG[r.stage]}`;
   else if (r.stageUp && !bloom) msg = `${p.name}の${STAGE_MSG[r.stage]}`;
   else if (!bloom) msg = `${p.name}が、ぐんと伸びました`;
   const after = bloom
-    ? `${r.lucky > 1 ? `<p class="cel-lucky">🎉 ラッキー！ ${r.lucky}輪いっしょに</p>` : ''}<p class="cel-big">${esc(p.name)}が<br>${esc(bloomWord(p))}！</p><p class="cel-word">花言葉「${esc(p.word)}」</p><p class="cel-remain">🌼 お花図鑑とお庭に入りました${g.bank ? '<br>あまったお水は、つぎのたねにあげます' : ''}</p>`
+    ? `<p class="cel-big">${esc(p.name)}が<br>${esc(bloomWord(p))}！</p><p class="cel-word">花言葉「${esc(p.word)}」</p><p class="cel-remain">🌼 お花図鑑とお庭に入りました${g.bank ? '<br>あまったお水は、つぎのたねにあげます' : ''}</p>`
     : `${msg ? `<p class="cel-msg">${esc(msg)}</p>` : ''}<p class="cel-remain">あと${remain}回で咲きます</p>`;
   const token = {};
   celebrate.token = token;
@@ -1093,7 +1074,7 @@ function celebrate(r, sub) {
       <div class="rain">${Array.from({ length: 6 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
       <div class="sparkles"></div>
     </div>
-    <p class="cel-water">${r.bonus.length ? `💧×${r.used} ごほうびのお水！<small>${esc(r.bonus.join('・'))}</small>` : `💧${r.used > 1 ? `×${r.used}` : ''} お水をあげました`}</p>
+    <p class="cel-water">💧${r.used > 1 ? `×${r.used}` : ''} お水をあげました</p>
     <div class="cel-after">${after}</div>
     <div class="dlg-btns"><button type="button" class="btn ghost" data-x>とじる</button><button type="button" class="btn" data-g>お庭を見る</button></div>`,
   `center cel${bloom ? ' is-bloom' : ''}`, (d, fin) => {
@@ -1105,7 +1086,7 @@ function celebrate(r, sub) {
       $('.cel-plant', d).innerHTML = plantAt(p, r.w);
       if (r.w > r.prevW) $('.cel-plant', d).classList.add('grown');
       d.classList.add('revealed');
-      const n = bloom ? 16 + (r.lucky - 1) * 8 : 7;
+      const n = bloom ? 16 : 7;
       $('.sparkles', d).innerHTML = Array.from({ length: n }, (_, i) => {
         const a = (i / n) * Math.PI * 2, rr = 38 + (i % 3) * 14;
         return `<i style="left:${(50 + Math.cos(a) * rr).toFixed(1)}%;top:${(48 + Math.sin(a) * rr * 0.8).toFixed(1)}%;--d:${(i % 5) * 0.15}s;--s:${0.7 + (i % 4) * 0.25}">✦</i>`;
@@ -1122,17 +1103,17 @@ function zukanDetail(i) {
   const g = S.garden;
   const pl = PLANTS[i];
   const n = g.coll[pl.id] || 0;
-  const growing = i === g.plant && g.water < pl.need;
+  const growing = i === g.plant && g.water < NEED;
   const first = g.hist.find((h) => h.id === pl.id && h.d);
   const fmtD = (d) => `${+d.slice(0, 4)}年${+d.slice(5, 7)}月${+d.slice(8)}日`;
   ask(`<div class="zk-img">${growing && !n ? plantAt(pl, g.water) : plantSVG(pl, 4)}</div>
     <h3 class="dlg-title">${esc(pl.name)}</h3>
     <p class="zk-word">花言葉「${esc(pl.word)}」</p>
     <table class="zk-tbl">
-      <tr><th>むずかしさ</th><td><span class="star">${stars(pl.need)}</span>（${pl.need}回で咲く）</td></tr>
+      <tr><th>咲くまで</th><td>運動${NEED}回</td></tr>
       <tr><th>咲かせた回数</th><td>${n}回</td></tr>
       ${first ? `<tr><th>はじめて咲いた日</th><td>${fmtD(first.d)}</td></tr>` : ''}
-      ${growing ? `<tr><th>いま</th><td>${STAGES[stageOf(g.water, pl.need)]}・あと${pl.need - g.water}回</td></tr>` : ''}
+      ${growing ? `<tr><th>いま</th><td>${STAGES[stageOf(g.water)]}・あと${NEED - g.water}回</td></tr>` : ''}
     </table>
     <div class="dlg-btns"><button type="button" class="btn" data-x>とじる</button></div>`, 'sheet', (d, fin) => { $('[data-x]', d).onclick = () => fin(null); });
 }
